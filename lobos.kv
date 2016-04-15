@@ -1,0 +1,138 @@
+<CameraWidget>:
+    orientation: 'vertical'
+    image: camera
+    label: label
+    txt_inpt: txt_inpt
+    e_txt: e_txt
+    n_txt: n_txt
+
+    Camera:
+        id: camera
+        index: 0
+        resolution: (1920,1080)
+
+    BoxLayout:
+        id: label
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: '32dp'
+
+        TextInput:
+            id: e_txt
+            text: 'Easting'
+            multiline: False
+            focus: False
+            font_size: app.font_size0
+
+        Button:
+            text: 'St. Up'
+            on_release: root.station_up()
+            font_size: app.font_size1
+
+        TextInput:
+            id: txt_inpt
+            text: '30'
+            multiline: False
+            focus: False
+            on_text_validate: root.change_st()
+
+        Button:
+            text: 'Sand'
+            on_press: root.TakePicture()
+            background_color: (1.0, 1.0, 0.0, 1.0)
+            font_size: app.font_size2
+
+        Button:
+            text: 'Rock'
+            on_press: root.TakePictureRock()
+            background_color: (1.0, 0.0, 0.0, 1.0)
+            font_size: app.font_size2
+
+        Button:
+            text: 'Gravel'
+            on_press: root.TakePictureGravel()
+            background_color: (0.5, 0.5, 0.5, 1.0)
+            font_size: app.font_size2
+
+        Button:
+            id: mode1
+            text: 'All off /MWF'
+            on_press: root.Mode1(app.ser2)
+            background_color: (0.3, 0.5, 0.7, 1.0)
+            font_size: app.font_size
+
+        Button:
+            id: mode4
+            text: 'Lights/Lasers /MWF'
+            on_press: root.Mode4(app.ser2)
+            background_color: (0.3, 0.5, 0.7, 1.0)
+            font_size: app.font_size0
+
+        Button:
+            id: mode5
+            text: 'LED /MACRO'
+            on_press: root.Mode5(app.ser2)
+            background_color: (0.7, 0.5, 0.3, 1.0)
+            font_size: app.font_size
+
+    BoxLayout:
+        id: label
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: '32dp'
+
+        TextInput:
+            id: n_txt
+            text: 'Northing'
+            multiline: False
+            focus: False
+            font_size: app.font_size0
+
+        Button:
+            text: 'St. Down'
+            on_release: root.station_down()
+            font_size: app.font_size1
+
+        Button:
+            text: 'Play/Pause'
+            on_press: root.Play()
+            font_size: app.font_size
+
+        Button:
+            text: 'Sand/Rock'
+            on_press: root.TakePictureSandRock()
+            background_color: (1.0, 0.6, 0.0, 1.0)
+            font_size: app.font_size
+
+        Button:
+            text: 'Gravel/Sand'
+            on_press: root.TakePictureGravelSand()
+            background_color: (0.7, 0.7, 0.1, 1.0)
+            font_size: app.font_size
+
+        Button:
+            text: 'Sand/Gravel'
+            on_press: root.TakePictureSandGravel()
+            background_color: (0.75, 0.6, 0.8, 1.0)
+            font_size: app.font_size
+
+        Button:
+            id: mode2
+            text: 'Lights /MWF'
+            on_press: root.Mode2(app.ser2)
+            background_color: (0.3, 0.5, 0.7, 1.0)
+            font_size: app.font_size
+
+        Button:
+            id: mode3
+            text: 'Lasers /MWF'
+            on_press: root.Mode3(app.ser2)
+            background_color: (0.3, 0.5, 0.7, 1.0)
+            font_size: app.font_size
+
+        Button:
+            id: mode6
+            text: 'Recal MACRO'
+            on_press: root.Mode6(app.ser2)
+            background_color: (0.7, 0.5, 0.3, 1.0)
+            font_size: app.font_size0
