@@ -59,7 +59,7 @@ import pyproj
 import random
 
 # com-number for serial port gps
-COMNUM = 5
+COMNUM = 10
 
 # com-number for serial port camera
 COMNUM2 = 4
@@ -250,9 +250,8 @@ def get_nmea(self):
             pass
 
     try:
-       #dat['depth_ft'] = self.ser3.read(100).split('DBT')[1].split(',f,')[0].split(',')[1]
-      # dat['depth_m'] = str(float(dat['depth_ft'])*0.3048)
-       d = str(float(dat['depth_ft'])*0.3048)
+       depth_ft = self.ser3.read(100).split('DBT')[1].split(',f,')[0].split(',')[1]
+       d = str(float(depth_ft)*0.3048)
     except:
        #dat['depth_ft'] = 'NaN'
        #dat['depth_m'] = 'NaN'

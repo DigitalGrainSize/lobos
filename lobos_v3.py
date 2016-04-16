@@ -6,7 +6,8 @@ program to
 3) save image to file with the site and time in the file name
 
 Written by:
-Daniel Buscombe, Feb-March 2015, updated June 2015, December 2015, April 2016
+Daniel Buscombe, March 2015, updated June 2015, December 2015
+then a major rewrite in April 2016
 Grand Canyon Monitoring and Research Center, U.G. Geological Survey, Flagstaff, AZ
 please contact:
 dbuscombe@usgs.gov
@@ -20,6 +21,9 @@ kivy (http://kivy.org/#home)
 pyserial
 pynmea
 pyproj
+matplotlib
+numpy
+scipy
 """
 
 # import kivy related libraries
@@ -60,37 +64,28 @@ import matplotlib.pyplot as plt
 from scipy.misc import imread
 from numpy import genfromtxt
 
-# config = ConfigParser.RawConfigParser()
-# config.add_section('lobos')
-# config.set('lobos', 'COMNUM', '10') #gps
-# config.set('lobos', 'COMNUM2', '4') #camera
-# config.set('lobos', 'COMNUM3', '3') #echosounder
-# config.set('lobos', 'BAUDRATE', '9600') #GPS
-# config.set('lobos', 'BAUDRATE2', '9600') #CAMERA
-# config.set('lobos', 'BAUDRATE3', '4800') #ECHOSOUNDER
-# config.set('lobos', 'MAKEMAP', 'true')
-# config.set('lobos', 'cs2cs_args', "epsg:26949")
-#
-# # Writing our configuration file
-# with open('lobos.cfg', 'wb') as configfile:
-#     config.write(configfile)
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+from kivy_matplotlib import MatplotFigure
 
+#============= START config =====================================
+# read the configuration file
 config = ConfigParser.RawConfigParser()
 config.read('lobos.cfg')
 
 # # com-number for serial port gps
-COMNUM = config.getint('lobos', 'comnum')
+COMNUM = config.getint('lobos', 'gpscom')
 # # com-number for serial port camera
-COMNUM2 = config.getint('lobos', 'comnum2')
+COMNUM2 = config.getint('lobos', 'camcom')
 # # com-number for echosounder
-COMNUM3 = config.getint('lobos', 'comnum3')
+COMNUM3 = config.getint('lobos', 'soundercom')
 
 # #same baud rate for gps
-BAUDRATE = config.getint('lobos', 'baudrate')
+BAUDRATE = config.getint('lobos', 'gpsbaud')
 # #set baud rate for caemra
-BAUDRATE2 = config.getint('lobos', 'baudrate2')
+BAUDRATE2 = config.getint('lobos', 'cambaud')
 # #baud rate for echosounder
-BAUDRATE3 = config.getint('lobos', 'baudrate3')
+BAUDRATE3 = config.getint('lobos', 'sounderbaud')
 
 cs2cs_args = config.get('lobos', 'cs2cs_args')
 # get the transformation matrix of desired output coordinates
@@ -99,17 +94,48 @@ try:
 except:
    trans =  pyproj.Proj(cs2cs_args)
 
+# if true, create an html map for online rendering in a web browser
 MAKEMAP = config.getboolean('lobos', 'makemap')
-
 if MAKEMAP:
     try:
         import folium
     except:
         MAKEMAP=False
 
+# if true, will show map on screen
+SHOWMAP = config.getboolean('lobos', 'showmap')
+# this is the tif wirld file
 TFWFILE = os.path.normpath(os.path.join(os.getcwd(),'maps',config.get('lobos', 'tfwfile')))
-
+# this is the background image file
 IMAGEFILE = os.path.normpath(os.path.join(os.getcwd(),'maps',config.get('lobos', 'imagefile')))
+# this is the extent in metres of the box around the last measurement
+IMBOX_X = config.getint('lobos', 'imbox_x')
+# this is the extent in metres of the box around the last measurement
+IMBOX_Y = config.getint('lobos', 'imbox_y')
+
+#============= END config =====================================
+
+#=========================
+def init_fig(self,IMAGEFILE, TFWFILE):
+    '''initialise real time display figure
+    '''
+    pil_image = imread(IMAGEFILE)
+    pos = genfromtxt(TFWFILE)
+    x,y,d = pil_image.shape
+
+    self.starttime = time.mktime(time.localtime())
+    if 'flag' in IMAGEFILE:
+       #self.ax.imshow(pil_image,extent=[pos[0],pos[2],pos[1],pos[3]])
+       self.fig.gca().imshow(pil_image,extent=[pos[0],pos[2],pos[1],pos[3]])
+    elif 'lake' in IMAGEFILE:
+       #self.ax.imshow(pil_image,extent=[pos[0],pos[2],pos[1],pos[3]])
+       self.fig.gca().imshow(pil_image,extent=[pos[0],pos[2],pos[1],pos[3]])
+    else:
+        imextent=[ pos[4], pos[4]+x*pos[0], pos[5], pos[5]+y*pos[0] ]
+        # self.ax.imshow(pil_image,extent=imextent) #[pos[0],pos[2],pos[1],pos[3]])
+        self.fig.gca().imshow(pil_image,extent=imextent)
+    self.fig.gca().axis('off')
+    return self
 
 #=========================
 def init_serial3(self,portnum):
@@ -206,10 +232,11 @@ def init_serial(self,portnum):
 def get_nmea(self):
     '''get easting/northing from serial port gps
     '''
+
     gotpos = 0; counter = 0
 
-    while (gotpos==0) &(counter<3):
-       line = self.ser.read(1000) # read 1000 bytes
+    while (gotpos==0) &(counter<2):
+       line = self.ser.read(500) # read 1000 bytes
        parts = line.split('\r\n') # split by line return
 
        gpgga_parts = []; gprmc_parts = [];
@@ -267,14 +294,23 @@ def get_nmea(self):
             e,n = trans(-long,lat)
 
         except:
-            pass
+            n = self.n_txt.text
+            e = self.e_txt.text
+
+    return str(e), str(n), -long, lat
+
+#=========================
+def get_nmeadepth(self):
+    '''get nmea depth from serial port echosounder
+    '''
 
     try:
-       d = str(float(dat['depth_ft'])*0.3048)
+       depth_ft = self.ser3.read(100).split('DBT')[1].split(',f,')[0].split(',')[1]
+       d = str(float(depth_ft)*0.3048)
     except:
        d = 'NaN'
 
-    return str(e), str(n), d, -long, lat #dat
+    return d
 
 #=========================
 #=========================
@@ -347,8 +383,8 @@ class CameraWidget(BoxLayout):
            self.textinput.text += 'Video resumed '+now+'\n'
 
     #=========================
-    def TakePicture(self, *args):
-        '''takes a sandcam picture and saves it to the eyeball folder
+    def TakePicture(self, fig, mode):#*args):
+        '''takes a picture and saves it to the folder according to 'mode'
         '''
         self.export_to_png = export_to_png
 
@@ -358,126 +394,54 @@ class CameraWidget(BoxLayout):
 
         now = time.asctime().replace(' ','_').replace(':','_')
 
-        filename = 'st'+self.txt_inpt.text+'_sand_'+now+'_'+self.e_txt.text+'_'+self.n_txt.text+'.png' #
+        if mode==1:
+            filename = 'st'+self.txt_inpt.text+'_sand_'+now+'_'+self.e_txt.text+'_'+self.n_txt.text+'.png'
+        elif mode==2:
+            filename = 'st'+self.txt_inpt.text+'_gravel_'+now+'_'+self.e_txt.text+'_'+self.n_txt.text+'.png'
+        elif mode==3:
+            filename = 'st'+self.txt_inpt.text+'_rock_'+now+'_'+self.e_txt.text+'_'+self.n_txt.text+'.png'
+        elif mode==4:
+            filename = 'st'+self.txt_inpt.text+'_sandrock_'+now+'_'+self.e_txt.text+'_'+self.n_txt.text+'.png'
+        elif mode==5:
+            filename = 'st'+self.txt_inpt.text+'_sandgravel_'+now+'_'+self.e_txt.text+'_'+self.n_txt.text+'.png'
+        elif mode==6:
+            filename = 'st'+self.txt_inpt.text+'_gravelsand_'+now+'_'+self.e_txt.text+'_'+self.n_txt.text+'.png'
+
         self.export_to_png(self.ids.camera, filename=filename)
 
-        subprocess.Popen("python resize_n_move.py -i "+filename+" -o eyeballimages", shell=True)
-        self.textinput.text += 'Eyeball image collected:\n'
+        if mode==1:
+            subprocess.Popen("python resize_n_move.py -i "+filename+" -o eyeballimages", shell=True)
+            self.textinput.text += 'Sand image collected:\n'
+        elif mode==2:
+            subprocess.Popen("python resize_n_move.py -i "+filename+" -o gravelimages", shell=True)
+            self.textinput.text += 'Gravel image collected:\n'
+        elif mode==3:
+            subprocess.Popen("python resize_n_move.py -i "+filename+" -o rockimages", shell=True)
+            self.textinput.text += 'Rock image collected:\n'
+        elif mode==4:
+            subprocess.Popen("python resize_n_move.py -i "+filename+" -o sandrockimages", shell=True)
+            self.textinput.text += 'Sand/Rock image collected:\n'
+        elif mode==5:
+            subprocess.Popen("python resize_n_move.py -i "+filename+" -o sandgravelimages", shell=True)
+            self.textinput.text += 'Sand/Gravel image collected:\n'
+        elif mode==6:
+            subprocess.Popen("python resize_n_move.py -i "+filename+" -o gravelsandimages", shell=True)
+            self.textinput.text += 'Gravel/Sand image collected:\n'
 
-    #=========================
-    def TakePictureMud(self, *args):
-        '''takes a mud picture
-        '''
-        self.export_to_png = export_to_png
-
-        tmp = Clipboard.paste()
-        self.n_txt.text = tmp.split(':')[0]
-        self.e_txt.text = tmp.split(':')[1]
-
-        now = time.asctime().replace(' ','_').replace(':','_')
-
-        filename = 'st'+self.txt_inpt.text+'_mud_'+now+'.png'
-        self.export_to_png(self.ids.camera, filename=filename)
-
-        subprocess.Popen("python resize_n_move.py -i "+filename+" -o mudimages", shell=True)
-
-        self.textinput.text += 'Mud image collected:\n'#+ filename.split('.png')[0]+'\n' #: '+filename+'\n'
-
-    #=========================
-    def TakePictureGravel(self, *args):
-        '''takes a gravel picture
-        '''
-        self.export_to_png = export_to_png
-
-        tmp = Clipboard.paste()
-        self.n_txt.text = tmp.split(':')[0]
-        self.e_txt.text = tmp.split(':')[1]
-
-        now = time.asctime().replace(' ','_').replace(':','_')
-
-        filename = 'st'+self.txt_inpt.text+'_gravel_'+now+'.png'
-        self.export_to_png(self.ids.camera, filename=filename)
-
-        subprocess.Popen("python resize_n_move.py -i "+filename+" -o gravelimages", shell=True)
-
-        self.textinput.text += 'Gravel image collected:\n'#+ filename.split('.png')[0]+'\n' #: '+filename+'\n'
-
-    #=========================
-    def TakePictureRock(self, *args):
-        '''takes a picture or rocks
-        '''
-        self.export_to_png = export_to_png
-
-        tmp = Clipboard.paste()
-        self.n_txt.text = tmp.split(':')[0]
-        self.e_txt.text = tmp.split(':')[1]
-
-        now = time.asctime().replace(' ','_').replace(':','_')
-
-        filename = 'st'+self.txt_inpt.text+'_rock_'+now+'.png'
-        self.export_to_png(self.ids.camera, filename=filename)
-
-        subprocess.Popen("python resize_n_move.py -i "+filename+" -o rockimages", shell=True)
-
-        self.textinput.text += 'Rock image collected:\n'#+ filename.split('.png')[0]+'\n' #: '+filename+'\n'
-
-    #=========================
-    def TakePictureSandRock(self, *args):
-        '''takes a picture of sand and rocks
-        '''
-        self.export_to_png = export_to_png
-
-        tmp = Clipboard.paste()
-        self.n_txt.text = tmp.split(':')[0]
-        self.e_txt.text = tmp.split(':')[1]
-
-        now = time.asctime().replace(' ','_').replace(':','_')
-
-        filename = 'st'+self.txt_inpt.text+'_sandrock_'+now+'.png'
-        self.export_to_png(self.ids.camera, filename=filename)
-
-        subprocess.Popen("python resize_n_move.py -i "+filename+" -o sandrockimages", shell=True)
-
-        self.textinput.text += 'Sand/Rock image collected:\n'
-
-    #=========================
-    def TakePictureSandGravel(self, *args):
-        '''takes a picture of sand and gravel
-        '''
-        self.export_to_png = export_to_png
-
-        tmp = Clipboard.paste()
-        self.n_txt.text = tmp.split(':')[0]
-        self.e_txt.text = tmp.split(':')[1]
-
-        now = time.asctime().replace(' ','_').replace(':','_')
-
-        filename = 'st'+self.txt_inpt.text+'_sandgravel_'+now+'.png'
-        self.export_to_png(self.ids.camera, filename=filename)
-
-        subprocess.Popen("python resize_n_move.py -i "+filename+" -o sandgravelimages", shell=True)
-
-        self.textinput.text += 'Sand/Gravel image collected:\n'#+ filename.split('.png')[0]+'\n' #: '+filename+'\n'
-
-    #=========================
-    def TakePictureGravelSand(self, *args):
-        '''
-        take picture of gravel and sand
-        '''
-        self.export_to_png = export_to_png
-
-        tmp = Clipboard.paste()
-        self.n_txt.text = tmp.split(':')[0]
-        self.e_txt.text = tmp.split(':')[1]
-
-        now = time.asctime().replace(' ','_').replace(':','_')
-
-        filename = 'st'+self.txt_inpt.text+'_gravelsand_'+now+'.png'
-        self.export_to_png(self.ids.camera, filename=filename)
-
-        subprocess.Popen("python resize_n_move.py -i "+filename+" -o gravelsandimages", shell=True)
-
-        self.textinput.text += 'Gravel/sand image collected:\n'#+ filename.split('.png')[0]+'\n' #: '+filename+'\n'
+        if SHOWMAP:
+            if mode==1:
+                fig.gca().plot(float(self.e_txt.text),float(self.n_txt.text),'ys')
+            elif mode==2:
+                fig.gca().plot(float(self.e_txt.text),float(self.n_txt.text),'s',color=(.5,.5,.5))
+            elif mode==3:
+                fig.gca().plot(float(self.e_txt.text),float(self.n_txt.text),'rs')
+            elif mode==4:
+                fig.gca().plot(float(self.e_txt.text),float(self.n_txt.text),'s', color=(1.0, 0.6, 0.0))
+            elif mode==5:
+                fig.gca().plot(float(self.e_txt.text),float(self.n_txt.text),'s', color=(0.75, 0.6, 0.8))
+            elif mode==6:
+                fig.gca().plot(float(self.e_txt.text),float(self.n_txt.text),'s', color=(0.7, 0.7, 0.1))
+            fig.canvas.draw()
 
     #=========================
     def change_st(self):
@@ -552,64 +516,29 @@ class CameraWidget(BoxLayout):
         fsite.close()
 
     #=========================
-    def Mode1(self, ser2):
+    def SetMode(self, ser2, mode):
         '''
-        send camera command to enter mode 1 (lights and lasers off)
-        mid water column focus
+        send camera command to enter 1 of 6 modes
         '''
-        self.textinput.text += 'All off / MWF @ '+time.asctime()+'\n'
         if ser2!=0:
-           status = ser2.write('00000\r'.encode()) # write command
-
-    #=========================
-    def Mode2(self, ser2):
-        '''
-        send camera command to enter mode 2 (lights on and lasers off)
-        mid water column focus
-        '''
-        self.textinput.text += 'Lights on / MWF @ '+time.asctime()+'\n'
-        if ser2!=0:
-            status = ser2.write('00001\r'.encode()) # write command
-
-    #=========================
-    def Mode3(self, ser2):
-        '''
-        send camera command to enter mode 3 (lights off and lasers on)
-        mid water column focus
-        '''
-        self.textinput.text += 'Lasers on / MWF @ '+time.asctime()+'\n'
-        if ser2!=0:
-            status = ser2.write('00010\r'.encode()) # write command
-
-    #=========================
-    def Mode4(self, ser2):
-        '''
-        send camera command to enter mode 4 (lights and lasers on)
-        mid water column focus
-        '''
-        self.textinput.text += 'Lights + Lasers on / MWF @ '+time.asctime()+'\n'
-        if ser2!=0:
-            status = ser2.write('00011\r'.encode()) # write command
-
-    #=========================
-    def Mode5(self, ser2):
-        '''
-        send camera command to enter mode 5 (lights and lasers off, LEDS on)
-        macro focus
-        '''
-        self.textinput.text += 'LED / Macro @ '+time.asctime()+'\n'
-        if ser2!=0:
-            status = ser2.write('01100\r'.encode()) # write command
-
-    #=========================
-    def Mode6(self, ser2):
-        '''
-        send camera command to enter mode 6
-        run macro focus recalibration routine
-        '''
-        self.textinput.text += 'Macro-focus recalibration @ '+time.asctime()+'\n'
-        if ser2!=0:
-            status = ser2.write('10000\r'.encode()) # write command
+            if mode==1:
+                self.textinput.text += 'All off / MWF @ '+time.asctime()+'\n'
+                status = ser2.write('00000\r'.encode()) # write command
+            elif mode==2:
+                self.textinput.text += 'Lights on / MWF @ '+time.asctime()+'\n'
+                status = ser2.write('00001\r'.encode()) # write command
+            elif mode==3:
+                self.textinput.text += 'Lasers on / MWF @ '+time.asctime()+'\n'
+                status = ser2.write('00010\r'.encode()) # write command
+            elif mode==4:
+                self.textinput.text += 'Lights + Lasers on / MWF @ '+time.asctime()+'\n'
+                status = ser2.write('00011\r'.encode()) # write command
+            elif mode==5:
+                self.textinput.text += 'LED / Macro @ '+time.asctime()+'\n'
+                status = ser2.write('01100\r'.encode()) # write command
+            elif mode==6:
+                self.textinput.text += 'Macro-focus recalibration @ '+time.asctime()+'\n'
+                status = ser2.write('10000\r'.encode()) # write command
 
 #=========================
 #=========================
@@ -644,7 +573,8 @@ class Eyeball_DAQApp(App):
         '''
         get and update position
         '''
-        e, n, d, lon, lat = get_nmea(self)
+        e, n, lon, lat = get_nmea(self)
+
         try:
             self.e_txt.text = e[:10]#self.dat['e'][:10]
             self.n_txt.text = n[:10]#self.dat['n'][:10]
@@ -659,18 +589,31 @@ class Eyeball_DAQApp(App):
         if MAKEMAP:
             self.map.simple_marker([lat, lon], marker_color='red')
             self.map.save(self.mapname)
+
+        if SHOWMAP:
             # plot position and color code by time elapsed
             secs = time.mktime(time.localtime())-self.starttime
-            self.ax.scatter(float(e),float(n),s=secs,c=secs)
+            self.fig.gca().scatter(float(e),float(n),s=30,c=secs, vmin=1, vmax=1200, cmap='Greens')
+            self.fig.gca().set_ylim([float(n)-IMBOX_Y, float(n)+IMBOX_Y])
+            self.fig.gca().set_xlim([float(e)-IMBOX_X, float(e)+IMBOX_X])
+            self.fig.canvas.draw()
+
+    #=========================
+    def _update_dep(self, dt):
+        '''
+        get and update depth
+        '''
+        d = get_nmeadepth(self)
 
         self.textinput2.text += d+' m'+'\n'
         if float(d)>10: #self.dat['depth_m']>10:
             self.textinput2.foreground_color = (0.6,0.5,0.0,1.0)
         elif d=='NaN':#self.dat['depth_m']=='NaN':
-            self.textinput2.foreground_color = (0.25,0.5,0.25,0.25)
+            self.textinput2.foreground_color = (0.95,0.5,0.25,0.5)
         else:
             self.textinput2.foreground_color = (0.0,0.0,0.0,0.0)
 
+    #=================================================
     # set font sizes for various buttons
     font_size0 = NumericProperty(8)
     font_size = NumericProperty(10)
@@ -679,6 +622,7 @@ class Eyeball_DAQApp(App):
 
     # set up a dummy variable that will get filled by the camera serial port
     ser2 = 99
+    fig = 999
 
     #=========================
     def build(self):
@@ -697,26 +641,6 @@ class Eyeball_DAQApp(App):
         self.n_txt = TextInput(multiline=False)
         self.n_txt.text = ''
 
-        if MAKEMAP:
-            self.map = folium.Map(location=(36.6804,-111.7390), tiles='Stamen Terrain') #start map around hotnana
-            self.mapname = os.path.expanduser("~")+os.sep+time.asctime().replace(' ','_').replace(':','_')+'.html'
-            self.map.save(self.mapname)
-
-            pil_image = imread(IMAGEFILE)
-            pos = genfromtxt(TFWFILE)
-            x,y,d = pil_image.shape
-            imextent=[ pos[4], pos[4]+x*pos[0], pos[5], pos[5]+y*pos[0] ]
-
-            self.starttime = time.mktime(time.localtime())
-            fig = plt.figure()
-            self.ax = fig.add_subplot(111)
-            self.ax.imshow(pil_image,extent=imextent) #[pos[0],pos[2],pos[1],pos[3]])
-            y_formatter = plt.ScalarFormatter(useOffset=False)
-            self.ax.yaxis.set_major_formatter(y_formatter)
-            self.ax.xaxis.set_major_formatter(y_formatter)
-            plt.setp(plt.xticks()[1], rotation=30)
-            plt.setp(plt.yticks()[1], rotation=30)
-
         #sets the accordion panel for the timestamp
         root = Accordion(orientation='horizontal')
         self.item = AccordionItem(title='Current time is '+time.asctime())
@@ -725,14 +649,28 @@ class Eyeball_DAQApp(App):
 
         # create data aquisition log
         layout = GridLayout(cols=1)
-        self.textinput = Log(text='Data Acquisition Log\n', size_hint = (0.05, .5), markup=True, font_size='10sp')
+        self.textinput = Log(text='Data Acquisition Log\n', size_hint = (0.05, .6), markup=True, font_size='10sp')
         self.textinput.counter=0
 
         # for depth display
-        self.textinput2 = Log(text='', size_hint = (0.05, 0.05), markup=True, font_size='20sp')
+        self.textinput2 = Log(text='', size_hint = (0.05, 0.2), markup=True, font_size='25sp')
+
+        # self.fig, self.ax = plt.subplots()
+        self.fig = mpl.figure.Figure()
+
+        if MAKEMAP:
+            self.map = folium.Map(location=(36.6804,-111.7390), tiles='Stamen Terrain', zoom_start=14, max_zoom=20, min_zoom=0, control_scale=True) #start map around hotnana
+            self.mapname = os.path.expanduser("~")+os.sep+time.asctime().replace(' ','_').replace(':','_')+'.html'
+            self.map.save(self.mapname)
+
+        if SHOWMAP:
+            self = init_fig(self,IMAGEFILE, TFWFILE)
+
+        self.my_mpl_kivy_widget = MatplotFigure(self.fig)
 
         #add live feed (image) and log window and depth window to gui
         layout.add_widget(self.textinput)
+        layout.add_widget(self.my_mpl_kivy_widget)
         layout.add_widget(self.textinput2)
 
         image.textinput = self.textinput
@@ -749,6 +687,8 @@ class Eyeball_DAQApp(App):
 
         # an object for passing to the mode buttons in the camera widget
         ser2 = self.ser2
+        # an object for passing the figure to the camera widget
+        fig = self.fig
 
         # add image to AccordionItem
         self.item.add_widget(image)
@@ -757,6 +697,7 @@ class Eyeball_DAQApp(App):
         #set clock to poll time and posotion on different threads
         Clock.schedule_interval(self._update_time, 1) #update time
         Clock.schedule_interval(self._update_pos, 4) #update position
+        Clock.schedule_interval(self._update_dep, 5) #update position
 
         root.add_widget(self.item)
 
@@ -808,11 +749,6 @@ class Eyeball_DAQApp(App):
            print "echosounder is closed"
            print "================="
 
-        if MAKEMAP:
-           plt.axis('tight')
-           plt.savefig(outfile.split('.txt')[0]+'.png', dpi=300)
-           plt.show()
-
 #=========================
 #=========================
 if __name__ == '__main__':
@@ -828,3 +764,40 @@ if __name__ == '__main__':
        pass
 
     Eyeball_DAQApp().run()
+
+# config = ConfigParser.RawConfigParser()
+# config.add_section('lobos')
+# config.set('lobos', 'COMNUM', '10') #gps
+# config.set('lobos', 'COMNUM2', '4') #camera
+# config.set('lobos', 'COMNUM3', '3') #echosounder
+# config.set('lobos', 'BAUDRATE', '9600') #GPS
+# config.set('lobos', 'BAUDRATE2', '9600') #CAMERA
+# config.set('lobos', 'BAUDRATE3', '4800') #ECHOSOUNDER
+# config.set('lobos', 'MAKEMAP', 'true')
+# config.set('lobos', 'cs2cs_args', "epsg:26949")
+#
+# # Writing our configuration file
+# with open('lobos.cfg', 'wb') as configfile:
+#     config.write(configfile)
+
+# #=========================
+# def TakePicture(self, fig):#*args):
+#     '''takes a sandcam picture and saves it to the eyeball folder
+#     '''
+#     self.export_to_png = export_to_png
+#
+#     tmp = Clipboard.paste()
+#     self.n_txt.text = tmp.split(':')[0]
+#     self.e_txt.text = tmp.split(':')[1]
+#
+#     now = time.asctime().replace(' ','_').replace(':','_')
+#
+#     filename = 'st'+self.txt_inpt.text+'_sand_'+now+'_'+self.e_txt.text+'_'+self.n_txt.text+'.png' #
+#     self.export_to_png(self.ids.camera, filename=filename)
+#
+#     subprocess.Popen("python resize_n_move.py -i "+filename+" -o eyeballimages", shell=True)
+#     self.textinput.text += 'Eyeball image collected:\n'
+#
+#     if SHOWMAP:
+#         fig.gca().plot(float(self.e_txt.text),float(self.n_txt.text),'ys')
+#         fig.canvas.draw()

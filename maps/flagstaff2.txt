@@ -1,0 +1,4 @@
+238131.206	#top left longitude
+468172.704	#top left latitude
+241011.820	#bottom right longitude
+466552.417	#bottom right latitude
