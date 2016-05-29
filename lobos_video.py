@@ -96,35 +96,35 @@ FPS = int(config.get('lobos', 'fps'))
 def id_generator(size=6, chars=string.ascii_uppercase ): #+ string.digits
    return ''.join(random.choice(chars) for _ in range(size))
 
-#=========================
-def init_serial3(self,portnum):
-    '''initialise serial port for echosounder
-    '''
-    comnum = 'COM' + str(portnum)
-
-    # now = time.asctime().replace(' ','_').replace(':','_')
-    try:
-        global BAUDRATE3
-        self.ser3 = serial.Serial()
-        self.ser3.baudrate = BAUDRATE3
-        self.ser3.port = comnum
-        self.ser3.timeout = 0.5
-        self.ser3.open()
-        if self.ser3.isOpen():
-            # self.textinput.text += 'Echosounder opened on port '+str(portnum)+'\n'
-            print '==========================='
-            print 'Echosounder is open'
-            print '==========================='
-            self.echosounderopen = 1
-    except:
-        # self.textinput.text += 'Echosounder failed to open on port '+str(portnum)+'\n'
-        self.ser3 = 0
-        print '==========================='
-        print "Echosounder failed to open"
-        print '==========================='
-        self.echosounderopen = 0
-
-    return self
+# #=========================
+# def init_serial3(self,portnum):
+#     '''initialise serial port for echosounder
+#     '''
+#     comnum = 'COM' + str(portnum)
+#
+#     # now = time.asctime().replace(' ','_').replace(':','_')
+#     try:
+#         global BAUDRATE3
+#         self.ser3 = serial.Serial()
+#         self.ser3.baudrate = BAUDRATE3
+#         self.ser3.port = comnum
+#         self.ser3.timeout = 0.5
+#         self.ser3.open()
+#         if self.ser3.isOpen():
+#             # self.textinput.text += 'Echosounder opened on port '+str(portnum)+'\n'
+#             print '==========================='
+#             print 'Echosounder is open'
+#             print '==========================='
+#             self.echosounderopen = 1
+#     except:
+#         # self.textinput.text += 'Echosounder failed to open on port '+str(portnum)+'\n'
+#         self.ser3 = 0
+#         print '==========================='
+#         print "Echosounder failed to open"
+#         print '==========================='
+#         self.echosounderopen = 0
+#
+#     return self
 
 #=========================
 def init_serial2(self,portnum):
@@ -254,21 +254,29 @@ def get_nmea(self):
         except:
             n = self.n_txt.text
             e = self.e_txt.text
-
-    return str(e), str(n), -long, lat
-
-#=========================
-def get_nmeadepth(self):
-    '''get nmea depth from serial port echosounder
-    '''
+            long = 'NaN'
+            lat = 'NaN'
 
     try:
-       depth_ft = self.ser3.read(100).split('DBT')[1].split(',f,')[0].split(',')[1]
-       d = str(float(depth_ft)*0.3048)
+        return str(e), str(n), str(-long), str(lat)
     except:
-       d = 'NaN'
+        long = 'NaN'
+        lat = 'NaN'
+        return str(e), str(n), str(long), str(lat)
 
-    return d
+
+#=========================
+# def get_nmeadepth(self):
+#     '''get nmea depth from serial port echosounder
+#     '''
+#
+#     try:
+#        depth_ft = self.ser3.read(100).split('DBT')[1].split(',f,')[0].split(',')[1]
+#        d = str(float(depth_ft)*0.3048)
+#     except:
+#        d = 'NaN'
+#
+#     return d
 
 #=========================
 #=========================
@@ -360,7 +368,7 @@ class Eyeball_DAQApp(App):
 
     #=========================
     def _update_time(self, dt):
-        self.item.title = time.asctime()+'/[N: '+str(self.n_txt.text)+', E: '+str(self.e_txt.text)+']/[D: '+str(self.d_txt.text)+']'+'\n'
+        self.item.title = time.asctime()+'/[N: '+str(self.n_txt.text)+', E: '+str(self.e_txt.text)+']'+'\n'
 
     #=========================
     def _update_pos(self, dt):
@@ -368,15 +376,15 @@ class Eyeball_DAQApp(App):
         get and update position
         '''
         e, n, lon, lat = get_nmea(self)
-        d = get_nmeadepth(self)
+        # d = get_nmeadepth(self)
         try:
             self.e_txt.text = e[:10]#self.dat['e'][:10]
             self.n_txt.text = n[:10]#self.dat['n'][:10]
-            self.d_txt.text = d
+            # self.d_txt.text = d
         except:
             pass
 
-        Clipboard.copy(self.n_txt.text+':'+self.e_txt.text+':'+self.d_txt.text)
+        Clipboard.copy(self.n_txt.text+':'+self.e_txt.text)
 
     # #=========================
     # def _update_dep(self, dt):
@@ -410,8 +418,8 @@ class Eyeball_DAQApp(App):
         self.n_txt.text = ''
 
         #text field for depth
-        self.d_txt = TextInput(multiline=False)
-        self.d_txt.text = ''
+        # self.d_txt = TextInput(multiline=False)
+        # self.d_txt.text = ''
 
         #sets the accordion panel for the timestamp
         root = Accordion(orientation='vertical')#'horizontal')
@@ -426,7 +434,7 @@ class Eyeball_DAQApp(App):
         self = init_serial2(self,COMNUM2) # is the com number this needs to read a config file or something
 
         #initiate serial port for echosounder
-        self = init_serial3(self,COMNUM3) # is the com number this needs to read a config file or something
+        # self = init_serial3(self,COMNUM3) # is the com number this needs to read a config file or something
 
         # an object for passing to the mode buttons in the camera widget
         ser2 = self.ser2
@@ -461,12 +469,12 @@ class Eyeball_DAQApp(App):
            print "serial camera is closed"
            print "================="
 
-        # close the serial port for echosounder
-        if self.ser3!=0:
-           self.ser3.close()
-           print "================="
-           print "echosounder is closed"
-           print "================="
+        # # close the serial port for echosounder
+        # if self.ser3!=0:
+        #    self.ser3.close()
+        #    print "================="
+        #    print "echosounder is closed"
+        #    print "================="
 
 #=========================
 #=========================

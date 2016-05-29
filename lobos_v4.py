@@ -133,7 +133,9 @@ def init_fig(self,IMAGEFILE, TFWFILE):
        #self.ax.imshow(pil_image,extent=[pos[0],pos[2],pos[1],pos[3]])
        self.fig.gca().imshow(pil_image,extent=[pos[0],pos[2],pos[1],pos[3]])
     else:
-        imextent=[ pos[4], pos[4]+x*pos[0], pos[5], pos[5]+y*pos[0] ]
+        ##imextent=[ pos[4], pos[4]+x*pos[0], pos[5], pos[5]+y*pos[0] ]
+        imextent=[ pos[4], pos[4]+y*pos[0], pos[5]-x*pos[0], pos[5] ]
+
         # self.ax.imshow(pil_image,extent=imextent) #[pos[0],pos[2],pos[1],pos[3]])
         self.fig.gca().imshow(pil_image,extent=imextent)
     self.fig.gca().axis('off')
@@ -236,9 +238,8 @@ def get_nmea(self):
     '''
 
     gotpos = 0; counter = 0
-
-    while (gotpos==0) &(counter<2):
-       line = self.ser.read(500) # read 1000 bytes
+    while (gotpos==0) &(counter<1):
+       line = self.ser.read(400) # read 400 bytes
        parts = line.split('\r\n') # split by line return
 
        gpgga_parts = []; gprmc_parts = [];
@@ -299,6 +300,7 @@ def get_nmea(self):
             n = self.n_txt.text
             e = self.e_txt.text
 
+
     return str(e), str(n), -long, lat
 
 #=========================
@@ -307,8 +309,9 @@ def get_nmeadepth(self):
     '''
 
     try:
-       depth_ft = self.ser3.read(100).split('DBT')[1].split(',f,')[0].split(',')[1]
+       depth_ft = self.ser3.read(300).split('DBT')[1].split(',f,')[0].split(',')[1]
        d = str(float(depth_ft)*0.3048)
+
     except:
        d = 'NaN'
 
@@ -647,7 +650,7 @@ class Eyeball_DAQApp(App):
         elif d=='NaN':#self.dat['depth_m']=='NaN':
             self.textinput2.foreground_color = (0.95,0.5,0.25,0.5)
         else:
-            self.textinput2.foreground_color = (0.0,0.0,0.0,0.0)
+            self.textinput2.foreground_color = (0.0,0.0,0.0,1.0)
 
     #=================================================
     # set font sizes for various buttons
@@ -685,11 +688,11 @@ class Eyeball_DAQApp(App):
 
         # create data aquisition log
         layout = GridLayout(cols=1)
-        self.textinput = Log(text='Data Acquisition Log\n', size_hint = (0.05, .6), markup=True, font_size='10sp')
+        self.textinput = Log(text='Data Acquisition Log\n', size_hint = (0.05, .5), markup=True, font_size='10sp')
         self.textinput.counter=0
 
         # for depth display
-        self.textinput2 = Log(text='', size_hint = (0.05, 0.2), markup=True, font_size='25sp')
+        self.textinput2 = Log(text='', size_hint = (0.05, 0.25), markup=True, font_size='35sp')
 
         # self.fig, self.ax = plt.subplots()
         self.fig = mpl.figure.Figure()
@@ -733,8 +736,8 @@ class Eyeball_DAQApp(App):
 
         #set clock to poll time and posotion on different threads
         Clock.schedule_interval(self._update_time, 1) #update time
-        Clock.schedule_interval(self._update_pos, 4) #update position
-        Clock.schedule_interval(self._update_dep, 5) #update position
+        Clock.schedule_interval(self._update_pos, 1) #update position
+        Clock.schedule_interval(self._update_dep, 5) #update depth
 
         root.add_widget(self.item)
 
