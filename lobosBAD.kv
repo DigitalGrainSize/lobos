@@ -1,0 +1,149 @@
+<CameraWidget>:
+    orientation: 'vertical'
+    image: camera
+    label: label
+    txt_inpt: txt_inpt
+    e_txt: e_txt
+    n_txt: n_txt
+
+    Camera:
+        id: camera
+        index: 0
+        resolution: (1920,1080)
+
+    BoxLayout:
+        id: label
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: '32dp'
+
+        Button:
+            text: 'Station +'
+            on_release: root.station_up()
+            font_size: app.font_size1
+
+        TextInput:
+            id: txt_inpt
+            text: '3'
+            font_size: app.font_size2
+
+        Button:
+            text: 'Sand'
+            on_press: root.TakePicture(app.fig,1)
+            background_color: (1.0, 1.0, 0.0, 1.0)
+            font_size: app.font_size2
+
+        Button:
+            text: 'Gravel'
+            on_press: root.TakePicture(app.fig,2)
+            background_color: (0.5, 0.5, 0.5, 1.0)
+            font_size: app.font_size2
+
+        Button:
+            text: 'Cobble'
+            on_press: root.TakePicture(app.fig,3)
+            background_color: (1.0, 0.0, 0.0, 1.0)
+            font_size: app.font_size2
+
+        Button:
+            text: 'Boulder'
+            on_press: root.TakePicture(app.fig,3)
+            background_color: (0.5, 0.5, 0.5, 1.0)
+            font_size: app.font_size2
+
+        Button:
+            text: 'Cam Only'
+            on_press: root.SetMode(app.ser2,1)
+            background_color: (0.3, 0.5, 0.7, 1.0)
+            font_size: app.font_size1
+
+        Button:
+            text: 'Laser +'+'\n'+'Light'
+            on_press: root.SetMode(app.ser2,4)
+            background_color: (0.3, 0.7, 0.7, 1.0)
+            font_size: app.font_size1
+
+        Button:
+            text: 'MACRO'
+            on_press: root.SetMode(app.ser2,5)
+            background_color: (0.5, 0.0, 0.0, 1.0)
+            font_size: app.font_size1
+
+    BoxLayout:
+        id: label
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: '32dp'
+
+        TextInput:
+            id: n_txt
+            text: 'Northing'
+            multiline: False
+            focus: False
+            font_size: app.font_size0
+
+        Button:
+            text: 'Station - '
+            on_release: root.station_down()
+            font_size: app.font_size1
+
+        Button:
+            text: 'Tranny'
+            on_press: root.TakePicture(app.fig,7)
+            background_color: (0.0, 0.0, 0.5, 1.0)
+            font_size: app.font_size1
+
+
+        Button:
+            text: 'Sand on'+'\n'+'Rocks'
+            on_press: root.TakePicture(app.fig,4)
+            background_color: (1.0, 0.6, 0.0, 1.0)
+            font_size: app.font_size1
+
+        Button:
+            text: 'Gravel'+'\n'+'w Sand'
+            on_press: root.TakePicture(app.fig,6)
+            background_color: (0.7, 0.7, 0.1, 1.0)
+            font_size: app.font_size1
+
+        Button:
+            text: '   Sand'+'\n'+'w Gravel'
+            on_press: root.TakePicture(app.fig,5)
+            background_color: (0.75, 0.6, 0.8, 1.0)
+            font_size: app.font_size1
+
+        Button:
+            text: 'Lights'
+            on_press: root.SetMode(app.ser2,2)
+            background_color: (0.3, 0.5, 0.7, 1.0)
+            font_size: app.font_size2
+
+        Button:
+            text: 'Lasers'
+            on_press: root.SetMode(app.ser2,3)
+            background_color: (0.1, 1.0, 0.1, 1.0)
+            font_size: app.font_size2
+
+        Button:
+            text: 'Re-Cal'+'\n'+'Macro'
+            on_press: root.SetMode(app.ser2,6)
+            background_color: (0.3, 0.5, 0.7, 1.0)
+            font_size: app.font_size
+
+<ConfirmPopup>:
+    cols:1
+	Label:
+		text: root.text
+	GridLayout:
+		cols: 2
+		size_hint_y: None
+		height: '44sp'
+		Button:
+			text: 'Yes'
+			on_release: root.dispatch('on_answer','yes')
+		Button:
+			text: 'No'
+			on_release: root.dispatch('on_answer', 'no')
+        Button:
+            text: "Cancel"
+            on_press: root.dismiss()

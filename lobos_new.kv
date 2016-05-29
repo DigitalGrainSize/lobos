@@ -1,0 +1,141 @@
+<CameraWidget>:
+    orientation: 'vertical'
+    image: camera
+    label: label
+    txt_inpt: txt_inpt
+    e_txt: e_txt
+    n_txt: n_txt
+
+    Camera:
+        id: camera
+        index: 0
+        resolution: (1920,1080)
+
+    BoxLayout:
+        id: label
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: '32dp'
+
+        TextInput:
+            id: e_txt
+            text: ''
+            font_size: app.font_sizezero
+            width: '1dp'
+
+        Button:
+            text: 'Station +'
+            on_press: root.station_up()
+            on_release: root.SetMode(app.ser2,3)
+            font_size: app.font_size1
+        TextInput:
+            id: txt_inpt
+            text: '2170'
+            font_size: app.font_size2
+
+        Button:
+            text: 'Boulder'
+            on_press: root.TakePicture(app.fig,9)
+            background_color: (0.4, 0.4, 0.0, 1.0)
+            font_size: app.font_size1
+
+        Button:
+            text: 'Cobble'
+            on_press: root.TakePicture(app.fig,8)
+            background_color: (0.5, 0.5, 0.0, 1.0)
+            font_size: app.font_size1
+
+        Button:
+            text: 'Gravel'
+            on_press: root.TakePicture(app.fig,2)
+            background_color: (0.6, 0.6, 0.0, 1.0)
+            font_size: app.font_size1
+
+        Button:
+            text: 'Sand'
+            on_press: root.TakePicture(app.fig,1)
+            background_color: (1.0, 1.0, 0.0, 1.0)
+            font_size: app.font_size2
+
+        Button:
+            text: 'MACRO'
+            on_press: root.SetMode(app.ser2,5)
+            background_color: (1.0, 0.0, 0.0, 1.0)
+            font_size: app.font_size1
+
+        Button:
+            text: 'Lasers'
+            on_press: root.SetMode(app.ser2,3)
+            background_color: (0.0, 0.9, 0.0, 1.0)
+            font_size: app.font_size1
+
+        Button:
+            text: 'CamOnly'
+            on_press: root.SetMode(app.ser2,1)
+            background_color: (0.0, 0.0, 0.7, 1.0)
+            font_size: app.font_size
+
+    BoxLayout:
+        id: label
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: '32dp'
+
+        TextInput:
+            id: n_txt
+            text: ''
+            font_size: app.font_sizezero
+            width: '1dp'
+
+        Button:
+            text: 'Station - '
+            on_release: root.station_down()
+            font_size: app.font_size1
+
+        Button:
+            text: 'Trans.'
+            on_press: root.TakePicture(app.fig,7)
+            background_color: (0.8, 0.0, 0.8, 1.0)
+            font_size: app.font_size1
+
+        Button:
+            text: 'Sand on'+'\n'+'Rocks'
+            on_press: root.TakePicture(app.fig,4)
+            background_color: (0.4, 0.4, 0.0, 1.0)
+            font_size: app.font_size
+
+        Button:
+            text: 'Cobbles'+'\n'+'w Gravel'
+            on_press: root.TakePicture(app.fig,3)
+            background_color: (0.5, 0.5, 0.0, 1.0)
+            font_size: app.font_size
+
+        Button:
+            text: 'Gravel'+'\n'+'w Sand'
+            on_press: root.TakePicture(app.fig,6)
+            background_color: (0.6, 0.6, 0.0, 1.0)
+            font_size: app.font_size
+
+        Button:
+            text: '   Sand'+'\n'+'w Gravel'
+            on_press: root.TakePicture(app.fig,5)
+            background_color: (0.7, 0.7, 0.0, 1.0)
+            font_size: app.font_size
+
+        Button:
+            text: 'Lights'
+            on_press: root.SetMode(app.ser2,2)
+            background_color: (0.0, 0.0, 0.7, 1.0)
+            font_size: app.font_size1
+
+        Button:
+            text: 'Laser +'+'\n'+'Light'
+            on_press: root.SetMode(app.ser2,4)
+            background_color: (0.0, 0.0, 0.7, 1.0)
+            font_size: app.font_size
+
+        Button:
+            text: 'Re-Cal'+'\n'+'Macro'
+            on_press: root.SetMode(app.ser2,6)
+            background_color: (0.0, 0.0, 0.7, 1.0)
+            font_size: app.font_size
