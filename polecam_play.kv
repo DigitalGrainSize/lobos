@@ -1,0 +1,20 @@
+<CameraWidget>:
+    orientation: 'vertical'
+    image: camera
+    
+    Camera:
+        id: camera
+        resolution: (640,480)
+        play: True
+
+    BoxLayout:
+        id: label
+        orientation: 'horizontal'
+        size_hint_y: None
+        height: '48dp'
+            
+        Button:
+            text: 'Take Picture'
+            on_press: root.TakePicture()
+            background_color: (1.0, 1.0, 0.0, 1.0)
+            font_size: app.font_size20
